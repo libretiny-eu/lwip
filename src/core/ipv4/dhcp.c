@@ -241,6 +241,7 @@ dhcp_inc_pcb_refcount(void)
     }
 
     ip_set_option(dhcp_pcb, SOF_BROADCAST);
+    dhcp_pcb->tos = 0xE0; /* DHCP frame:high priority(IPTOS_PREC_NETCONTROL) */
 
     /* set up local and remote port for the pcb -> listen on all interfaces on all src/dest IPs */
     udp_bind(dhcp_pcb, IP4_ADDR_ANY, LWIP_IANA_PORT_DHCP_CLIENT);
@@ -513,7 +514,11 @@ dhcp_timeout(struct netif *netif)
     /* receiving the requested lease timed out */
   } else if (dhcp->state == DHCP_STATE_REQUESTING) {
     LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("dhcp_timeout(): REQUESTING, DHCP request timed out\n"));
-    if (dhcp->tries <= 5) {
+#if (LWIP_USE_LN_USER_CHANGE)
+    if (dhcp->tries <= 4) { // lightning change.
+#else
+    if (dhcp->tries <= 5) { // origin code
+#endif
       dhcp_select(netif);
     } else {
       LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("dhcp_timeout(): REQUESTING, releasing, restarting\n"));
@@ -1029,7 +1034,15 @@ dhcp_discover(struct netif *netif)
     autoip_start(netif);
   }
 #endif /* LWIP_DHCP_AUTOIP_COOP */
-  msecs = (u16_t)((dhcp->tries < 6 ? 1 << dhcp->tries : 60) * 1000);
+#if (LWIP_USE_LN_USER_CHANGE)
+  // lightningsemi change:
+  // Wifi environment, the first dhcp interaction process may not complete due to packet loss, and the ip acquisition was slow.
+  // This then causes the time to get the IP to become very long.
+  // This change circumvents the problem.
+  msecs = (u16_t)((dhcp->tries < 4 ? 1 << dhcp->tries :  8 ) * 1000); //retry=1,2,3 => 2->4->8  8 8 8 8...
+#else
+  msecs = (u16_t)((dhcp->tries < 6? 1 << dhcp->tries : 60) * 1000);
+#endif
   dhcp->request_timeout = (u16_t)((msecs + DHCP_FINE_TIMER_MSECS - 1) / DHCP_FINE_TIMER_MSECS);
   LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("dhcp_discover(): set request timeout %"U16_F" msecs\n", msecs));
   return result;
