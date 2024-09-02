@@ -200,6 +200,13 @@ ethernetif_input(int iface, struct pbuf *p)
     /* points to packet payload, which starts with an Ethernet header */
     ethhdr = p->payload;
 
+    /* Ignore our own multicast packets when they come back from the AP */
+    if ((ethhdr->dest.addr[0] & 0x01) /* multicast */ &&
+	!memcmp(ethhdr->src.addr, netif->hwaddr, ETH_HWADDR_LEN)) {
+	    pbuf_free(p);
+	    p = NULL;
+	    return;
+    }
     switch (htons(ethhdr->type))
     {
         /* IP or ARP packet? */
