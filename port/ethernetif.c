@@ -52,6 +52,7 @@
 #include "lwip/sys.h"
 #include <lwip/stats.h>
 #include <lwip/snmp.h>
+#include "lwip/ethip6.h"
 #include "ethernetif.h"
 
 #include <stdio.h>
@@ -135,6 +136,9 @@ static void low_level_init(struct netif *netif)
     /* device capabilities */
     /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
+#ifdef CONFIG_IPV6
+    netif->flags |= NETIF_FLAG_MLD6;
+#endif
     ETH_INTF_PRT("leave low level!\r\n");
 }
 
@@ -212,6 +216,7 @@ ethernetif_input(int iface, struct pbuf *p)
         /* IP or ARP packet? */
     case ETHTYPE_IP:
     case ETHTYPE_ARP:
+    case ETHTYPE_IPV6:
 #if PPPOE_SUPPORT
         /* PPPoE packet? */
     case ETHTYPE_PPPOEDISC:
@@ -272,6 +277,9 @@ ethernetif_init(struct netif *netif)
      * is available...) */
     netif->output = etharp_output;
     netif->linkoutput = low_level_output;
+#ifdef CONFIG_IPV6
+    netif->output_ip6 = ethip6_output;
+#endif
 
     /* initialize the hardware */
     low_level_init(netif);
@@ -332,6 +340,9 @@ err_t lwip_netif_uap_init(struct netif *netif)
 	 * is available...) */
 	netif->output = etharp_output;
 	netif->linkoutput = low_level_output;
+#ifdef CONFIG_IPV6
+	netif->output_ip6 = ethip6_output;
+#endif
 
 	/* initialize the hardware */
 	low_level_init(netif);
