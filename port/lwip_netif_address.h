@@ -29,6 +29,17 @@ struct ipv4_config {
 	unsigned dns2;
 };
 
+#ifdef CONFIG_IPV6
+struct ipv6_config
+{
+    /** The system's IPv6 address in network order. */
+    uint32_t addr[4];
+    /** The address type: linklocal, site-local or global. */
+    unsigned char addr_type;
+    /** The state of IPv6 address (Tentative, Preferred, etc). */
+    unsigned char addr_state;
+};
+#endif
 /** Network IP configuration.
  *
  *  This data structure represents the network IP configuration
@@ -38,7 +49,7 @@ struct wlan_ip_config {
 #ifdef CONFIG_IPV6
 	/** The network IPv6 address configuration that should be
 	 * associated with this interface. */
-	struct ipv6_config ipv6[MAX_IPV6_ADDRESSES];
+	struct ipv6_config ipv6[LWIP_IPV6_NUM_ADDRESSES];
 #endif
 	/** The network IPv4 address configuration that should be
 	 * associated with this interface. */

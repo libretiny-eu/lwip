@@ -49,7 +49,6 @@ uint32_t uap_ip_start_flag = 0;
 #define IPV6_ADDR_UNKNOWN		        "Unknown"
 #endif
 
-
 #define net_e warning_prf
 #define net_d warning_prf
 
@@ -57,9 +56,9 @@ typedef void (*net_sta_ipup_cb_fn)(void* data);
 
 struct interface {
 	struct netif netif;
-	ip_addr_t ipaddr;
-	ip_addr_t nmask;
-	ip_addr_t gw;
+	ip4_addr_t ipaddr;
+	ip4_addr_t nmask;
+	ip4_addr_t gw;
 };
 FUNCPTR sta_connected_func;
 
@@ -78,38 +77,6 @@ extern int dhcp_server_start(void *intrfc_handle);
 extern void dhcp_server_stop(void);
 extern void net_configure_dns(struct wlan_ip_config *ip);
 
-#ifdef CONFIG_IPV6
-char *ipv6_addr_state_to_desc(unsigned char addr_state)
-{
-	if (ip6_addr_istentative(addr_state))
-		return IPV6_ADDR_STATE_TENTATIVE;
-	else if (ip6_addr_ispreferred(addr_state))
-		return IPV6_ADDR_STATE_PREFERRED;
-	else if (ip6_addr_isinvalid(addr_state))
-		return IPV6_ADDR_STATE_INVALID;
-	else if (ip6_addr_isvalid(addr_state))
-		return IPV6_ADDR_STATE_VALID;
-	else if (ip6_addr_isdeprecated(addr_state))
-		return IPV6_ADDR_STATE_DEPRECATED;
-	else
-		return IPV6_ADDR_UNKNOWN;
-}
-
-char *ipv6_addr_type_to_desc(struct ipv6_config *ipv6_conf)
-{
-	if (ip6_addr_islinklocal((ip6_addr_t *)ipv6_conf->address))
-		return IPV6_ADDR_TYPE_LINKLOCAL;
-	else if (ip6_addr_isglobal((ip6_addr_t *)ipv6_conf->address))
-		return IPV6_ADDR_TYPE_GLOBAL;
-	else if (ip6_addr_isuniquelocal((ip6_addr_t *)ipv6_conf->address))
-		return IPV6_ADDR_TYPE_UNIQUELOCAL;
-	else if (ip6_addr_issitelocal((ip6_addr_t *)ipv6_conf->address))
-		return IPV6_ADDR_TYPE_SITELOCAL;
-	else
-		return IPV6_ADDR_UNKNOWN;
-}
-#endif /* CONFIG_IPV6 */
-
 int net_dhcp_hostname_set(char *hostname)
 {
 	netif_set_hostname(&g_mlan.netif, hostname);
@@ -127,47 +94,6 @@ void net_ipv4stack_init(void)
 	tcpip_init_done = true;
 }
 
-#ifdef CONFIG_IPV6
-void net_ipv6stack_init(struct netif *netif)
-{
-	uint8_t mac[6];
-
-	netif->flags |= NETIF_IPV6_FLAG_UP;
-
-	/* Set Multicast filter for IPV6 link local address
-	 * It contains first three bytes: 0x33 0x33 0xff (fixed)
-	 * and last three bytes as last three bytes of device mac */
-	mac[0] = 0x33;
-	mac[1] = 0x33;
-	mac[2] = 0xff;
-	mac[3] = netif->hwaddr[3];
-	mac[4] = netif->hwaddr[4];
-	mac[5] = netif->hwaddr[5];
-	wifi_add_mcast_filter(mac);
-
-	netif_create_ip6_linklocal_address(netif, 1);
-	netif->ip6_autoconfig_enabled = 1;
-
-	/* IPv6 routers use multicast IPv6 ff02::1 and MAC address
-	   33:33:00:00:00:01 for router advertisements */
-	mac[0] = 0x33;
-	mac[1] = 0x33;
-	mac[2] = 0x00;
-	mac[3] = 0x00;
-	mac[4] = 0x00;
-	mac[5] = 0x01;
-	wifi_add_mcast_filter(mac);
-}
-
-static void wm_netif_ipv6_status_callback(struct netif *n)
-{
-	/*	TODO: Implement appropriate functionality here*/
-	net_d("Received callback on IPv6 address state change");
-	wlan_wlcmgr_send_msg(WIFI_EVENT_NET_IPV6_CONFIG,
-				     WIFI_EVENT_REASON_SUCCESS, NULL);
-}
-#endif /* CONFIG_IPV6 */
-
 void net_wlan_init(void)
 {
 	static int wlan_init_done = 0;
@@ -183,9 +109,6 @@ void net_wlan_init(void)
 			/*FIXME: Handle the error case cleanly */
 			net_e("MLAN interface add failed");
 		}
-#ifdef CONFIG_IPV6
-		net_ipv6stack_init(&g_mlan.netif);
-#endif /* CONFIG_IPV6 */
 
 		ret = netifapi_netif_add(&g_uap.netif, &g_uap.ipaddr,
 					 &g_uap.ipaddr, &g_uap.ipaddr, NULL,
@@ -244,7 +167,7 @@ static void wm_netif_status_callback(struct netif *n)
 		{
 			if (dhcp->state == DHCP_STATE_BOUND)
             {
-				os_printf("ip_addr: %x\r\n", n->ip_addr.addr);
+				os_printf("ip_addr: %x\r\n", ip_addr_get_ip4_u32(&n->ip_addr));
 
 #if CFG_ROLE_LAUNCH
                 rl_pre_sta_set_status(RL_STATUS_STA_LAUNCHED);
@@ -351,15 +274,6 @@ void net_interface_down(void *intrfc_handle)
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 	netifapi_netif_set_down(&if_handle->netif);
 }
-
-#ifdef CONFIG_IPV6
-void net_interface_deregister_ipv6_callback(void *intrfc_handle)
-{
-	struct interface *if_handle = (struct interface *)intrfc_handle;
-	if (intrfc_handle == &g_mlan)
-		netif_set_ipv6_status_callback(&if_handle->netif, NULL);
-}
-#endif
 
 void net_interface_dhcp_stop(void *intrfc_handle)
 {
@@ -518,16 +432,6 @@ int net_configure_address(struct ipv4_config *addr, void *intrfc_handle)
 	 * address configuration.
 	 */
 	netif_set_status_callback(&if_handle->netif, NULL);
-#ifdef CONFIG_IPV6
-	if (if_handle == &g_mlan) {
-		netif_set_ipv6_status_callback(&if_handle->netif,
-			wm_netif_ipv6_status_callback);
-		/* Explicitly call this function so that the linklocal address
-		 * gets updated even if the interface does not get any IPv6
-		 * address in its lifetime */
-		wm_netif_ipv6_status_callback(&if_handle->netif);
-	}
-#endif
 	switch (addr->addr_type) {
 	case ADDR_TYPE_STATIC:
 		if_handle->ipaddr.addr = addr->address;
@@ -562,6 +466,9 @@ int net_configure_address(struct ipv4_config *addr, void *intrfc_handle)
 	default:
 		break;
 	}
+#ifdef CONFIG_IPV6
+	netif_create_ip6_linklocal_address(&if_handle->netif, 1);
+#endif
 	/* Finally this should send the following event. */
 	if (if_handle == &g_mlan) {
 		// static IP up;
@@ -596,14 +503,15 @@ int net_get_if_addr(struct wlan_ip_config *addr, void *intrfc_handle)
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 
     if(netif_is_up(&if_handle->netif)) {
-    	addr->ipv4.address = if_handle->netif.ip_addr.addr;
-    	addr->ipv4.netmask = if_handle->netif.netmask.addr;
-    	addr->ipv4.gw = if_handle->netif.gw.addr;
+	addr->ipv4.address = ip_addr_get_ip4_u32(&if_handle->netif.ip_addr);
+	addr->ipv4.netmask = ip_addr_get_ip4_u32(&if_handle->netif.netmask);
+	addr->ipv4.gw = ip_addr_get_ip4_u32(&if_handle->netif.gw);
 
     	tmp = dns_getserver(0);
-    	addr->ipv4.dns1 = tmp->addr;
-    	tmp = dns_getserver(1);
-    	addr->ipv4.dns2 = tmp->addr;
+		addr->ipv4.dns1 = ip_addr_get_ip4_u32(tmp);
+
+		tmp = dns_getserver(1);
+		addr->ipv4.dns2 = ip_addr_get_ip4_u32(tmp);
     }
 
 	return 0;
@@ -624,10 +532,10 @@ int net_get_if_ipv6_addr(struct wlan_ip_config *addr, void *intrfc_handle)
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 	int i;
 
-	for (i = 0; i < MAX_IPV6_ADDRESSES; i++) {
-		memcpy(addr->ipv6[i].address,
-			if_handle->netif.ip6_addr[i].addr, 16);
-		addr->ipv6[i].addr_state = if_handle->netif.ip6_addr_state[i];
+	for (i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
+			ip6_addr_copy_to_packed(addr->ipv6[i],
+									*ip_2_ip6(&if_handle->netif.ip6_addr[i]));
+			addr->ipv6[i].addr_state = if_handle->netif.ip6_addr_state[i];
 	}
 	/* TODO carry out more processing based on IPv6 fields in netif */
 	return 0;
@@ -638,10 +546,11 @@ int net_get_if_ipv6_pref_addr(struct wlan_ip_config *addr, void *intrfc_handle)
 	int i, ret = 0;
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 
-	for (i = 0; i < MAX_IPV6_ADDRESSES; i++) {
+	for (i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
 		if (if_handle->netif.ip6_addr_state[i] == IP6_ADDR_PREFERRED) {
-			memcpy(addr->ipv6[ret++].address,
-				if_handle->netif.ip6_addr[i].addr, 16);
+			ip6_addr_copy_to_packed(addr->ipv6[ret],
+									*ip_2_ip6(&if_handle->netif.ip6_addr[i]));
+			ret++;
 		}
 	}
 	return ret;
@@ -652,7 +561,7 @@ int net_get_if_ip_addr(uint32_t *ip, void *intrfc_handle)
 {
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 
-	*ip = if_handle->netif.ip_addr.addr;
+	*ip = ip_addr_get_ip4_u32(&if_handle->netif.ip_addr);
 	return 0;
 }
 
@@ -660,7 +569,7 @@ int net_get_if_gw_addr(uint32_t *ip, void *intrfc_handle)
 {
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 
-	*ip = if_handle->netif.gw.addr;
+	*ip = ip_addr_get_ip4_u32(&if_handle->netif.gw);
 
 	return 0;
 }
@@ -669,7 +578,7 @@ int net_get_if_ip_mask(uint32_t *nm, void *intrfc_handle)
 {
 	struct interface *if_handle = (struct interface *)intrfc_handle;
 
-	*nm = if_handle->netif.netmask.addr;
+	*nm = ip_addr_get_ip4_u32(&if_handle->netif.netmask);
 	return 0;
 }
 
@@ -684,9 +593,9 @@ void net_configure_dns(struct wlan_ip_config *ip)
 		if (ip->ipv4.dns2 == 0)
 			ip->ipv4.dns2 = ip->ipv4.dns1;
 
-		tmp.addr = ip->ipv4.dns1;
+		ip_addr_set_ip4_u32(&tmp, ip->ipv4.dns1);
 		dns_setserver(0, &tmp);
-		tmp.addr = ip->ipv4.dns2;
+		ip_addr_set_ip4_u32(&tmp, ip->ipv4.dns2);
 		dns_setserver(1, &tmp);
 	}
 
@@ -697,10 +606,6 @@ void net_configure_dns(struct wlan_ip_config *ip)
 void net_wlan_initial(void)
 {
     net_ipv4stack_init();
-
-#ifdef CONFIG_IPV6
-    net_ipv6stack_init(&g_mlan.netif);
-#endif /* CONFIG_IPV6 */
 }
 
 void net_wlan_add_netif(void *mac)

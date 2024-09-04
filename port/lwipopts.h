@@ -179,7 +179,7 @@
  * MEMP_NUM_SYS_TIMEOUT: the number of simulateously active timeouts.
  * (requires NO_SYS==0)
  */
-#define MEMP_NUM_SYS_TIMEOUT            12
+#define MEMP_NUM_SYS_TIMEOUT            LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4
 
 /**
  * MEMP_NUM_NETBUF: the number of struct netbufs.
@@ -233,6 +233,7 @@
  * LWIP_RAW==1: Enable application layer to hook into the IP layer itself.
  */
 #define LWIP_RAW                        1
+#define LWIP_IPV4                       1
 #ifdef CONFIG_IPV6
 #define LWIP_IPV6                        1
 #endif
