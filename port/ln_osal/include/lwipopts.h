@@ -2,6 +2,7 @@
 #define __LWIP_CFG_H__
 
 #include <sys/time.h>
+#define LWIP_DBG_OFF           0x00U
 
 #define LWIP_TIMEVAL_PRIVATE    0
 
@@ -74,10 +75,10 @@ a lot of data that needs to be copied, this should be set high. */
 /* PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. */
 #define PBUF_POOL_BUFSIZE       772 //(NETIF_MTU + PBUF_LINK_HLEN)
 
-#if PBUF_POOL_BUFSIZE > (TCP_MSS+PBUF_IP_HLEN+PBUF_TRANSPORT_HLEN+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)
+/*#if PBUF_POOL_BUFSIZE > (TCP_MSS+PBUF_IP_HLEN+PBUF_TRANSPORT_HLEN+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)
 #undef PBUF_POOL_BUFSIZE
 #define PBUF_POOL_BUFSIZE       (TCP_MSS+PBUF_IP_HLEN+PBUF_TRANSPORT_HLEN+PBUF_LINK_ENCAPSULATION_HLEN+PBUF_LINK_HLEN)
-#endif
+#endif*/
 
 /* ---------- TCP options ---------- */
 #define LWIP_TCP                (1)
