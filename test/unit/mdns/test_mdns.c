@@ -903,10 +903,6 @@ END_TEST
 #define TXT_LENGTH_255 255
 #define TXT_LENSTR_255 "\377"
 
-/* Temporary macro. Remove this once we are done changing service.txtdata from
- * a struct mdns_domain to a struct mdns_txtdata */
-#define TXT_RDATA(txtdata) (txtdata).rdata
-
 START_TEST(txt_small_item)
 {
   const char *expected_txtdata = TXT_LENSTR_6 TXT_STRING_6;
@@ -914,7 +910,7 @@ START_TEST(txt_small_item)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at least 7 bytes */
-  ck_assert_uint_ge(sizeof(TXT_RDATA(service.txtdata)), 7);
+  ck_assert_uint_ge(sizeof(service.txtdata.rdata), 7);
 
   memset(&service, 0, sizeof(struct mdns_service));
   mdns_prepare_txtdata(&service);
@@ -923,7 +919,7 @@ START_TEST(txt_small_item)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_6, TXT_LENGTH_6));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -934,7 +930,7 @@ START_TEST(txt_63byte_item)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at least 64 bytes */
-  ck_assert_uint_ge(sizeof(TXT_RDATA(service.txtdata)), 64);
+  ck_assert_uint_ge(sizeof(service.txtdata.rdata), 64);
 
   memset(&service, 0, sizeof(struct mdns_service));
   mdns_prepare_txtdata(&service);
@@ -943,7 +939,7 @@ START_TEST(txt_63byte_item)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_63, TXT_LENGTH_63));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -954,7 +950,7 @@ START_TEST(txt_103byte_item)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at least 104 bytes */
-  ck_assert_uint_ge(sizeof(TXT_RDATA(service.txtdata)), 104);
+  ck_assert_uint_ge(sizeof(service.txtdata.rdata), 104);
 
   memset(&service, 0, sizeof(struct mdns_service));
   mdns_prepare_txtdata(&service);
@@ -963,7 +959,7 @@ START_TEST(txt_103byte_item)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_103, TXT_LENGTH_103));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -974,7 +970,7 @@ START_TEST(txt_255byte_item)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at least 256 bytes */
-  ck_assert_uint_ge(sizeof(TXT_RDATA(service.txtdata)), 256);
+  ck_assert_uint_ge(sizeof(service.txtdata.rdata), 256);
 
   memset(&service, 0, sizeof(struct mdns_service));
   mdns_prepare_txtdata(&service);
@@ -983,7 +979,7 @@ START_TEST(txt_255byte_item)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_255, TXT_LENGTH_255));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -1004,7 +1000,7 @@ START_TEST(txt_multiple_items)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at least 141 bytes */
-  ck_assert_uint_ge(sizeof(TXT_RDATA(service.txtdata)), 141);
+  ck_assert_uint_ge(sizeof(service.txtdata.rdata), 141);
 
   memset(&service, 0, sizeof(struct mdns_service));
   mdns_prepare_txtdata(&service);
@@ -1022,7 +1018,7 @@ START_TEST(txt_multiple_items)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_6, TXT_LENGTH_6));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -1033,7 +1029,7 @@ START_TEST(txt_empty_item)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at least 16 bytes */
-  ck_assert_uint_ge(sizeof(TXT_RDATA(service.txtdata)), 16);
+  ck_assert_uint_ge(sizeof(service.txtdata.rdata), 16);
 
   memset(&service, 0, sizeof(struct mdns_service));
   mdns_prepare_txtdata(&service);
@@ -1042,7 +1038,7 @@ START_TEST(txt_empty_item)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_0, TXT_LENGTH_0));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -1082,7 +1078,7 @@ START_TEST(txt_empty_between_nonempty_items)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_6, TXT_LENGTH_6));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -1093,7 +1089,7 @@ START_TEST(txt_reject_buffer_overflow)
   struct mdns_service service;
 
   /* This test assumes a buffer size of _exactly_ 256 bytes */
-  if (sizeof(TXT_RDATA(service.txtdata)) != 256) {
+  if (sizeof(service.txtdata.rdata) != 256) {
     ck_abort_msg("Test skipped");
   }
 
@@ -1112,7 +1108,7 @@ START_TEST(txt_reject_buffer_overflow)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_255, TXT_LENGTH_255));
 
   ck_assert_uint_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
@@ -1128,7 +1124,7 @@ START_TEST(txt_buffer_fill)
   struct mdns_service service;
 
   /* This test assumes a buffer size of at _exactly_ 256 bytes */
-  if (sizeof(TXT_RDATA(service.txtdata)) != 256) {
+  if (sizeof(service.txtdata.rdata) != 256) {
     ck_abort_msg("Test skipped");
   }
 
@@ -1146,7 +1142,7 @@ START_TEST(txt_buffer_fill)
     mdns_resp_add_service_txtitem(&service, TXT_STRING_63, TXT_LENGTH_63));
 
   /* Length value should never exceed size of the actual buffer. */
-  ck_assert_uint_le(service.txtdata.length, sizeof(TXT_RDATA(service.txtdata)));
+  ck_assert_uint_le(service.txtdata.length, sizeof(service.txtdata.rdata));
 
   /* Check if the length is what we expect. */
   ck_assert_uint_eq(service.txtdata.length, 64+64+64+64);
@@ -1162,7 +1158,7 @@ START_TEST(txt_buffer_fill)
 
   /* Check that the content matches what we expect */
   ck_assert_int_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
+  ck_assert_mem_eq(expected_txtdata, service.txtdata.rdata, expected_txtdata_length);
 }
 END_TEST
 
