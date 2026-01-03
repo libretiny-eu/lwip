@@ -905,7 +905,7 @@ END_TEST
 
 /* Temporary macro. Remove this once we are done changing service.txtdata from
  * a struct mdns_domain to a struct mdns_txtdata */
-#define TXT_RDATA(txtdata) (txtdata).name
+#define TXT_RDATA(txtdata) (txtdata).rdata
 
 START_TEST(txt_small_item)
 {
