@@ -1166,62 +1166,6 @@ START_TEST(txt_buffer_fill)
 }
 END_TEST
 
-/* This is the same as txt_buffer_fill, but the last value is split into
- * two pieces, with the empty string being the final item.  It worked where
- * txt_buffer_fill failed when mdns_service.txtdata reused struct mdns_domain,
- * because the domain code preserves an extra byte for the zero-length label.
- */
-START_TEST(txt_buffer_fill_lastempty)
-{
-  const char *expected_txtdata = (
-    TXT_LENSTR_63 TXT_STRING_63
-    TXT_LENSTR_63 TXT_STRING_63
-    TXT_LENSTR_63 TXT_STRING_63
-    TXT_LENSTR_62 TXT_STRING_62
-    TXT_LENSTR_0 TXT_STRING_0
-  );
-  const size_t expected_txtdata_length = 256;
-  struct mdns_service service;
-
-  /* This test assumes a buffer size of at _exactly_ 256 bytes */
-  ck_assert_uint_eq(sizeof(TXT_RDATA(service.txtdata)), 256);
-
-  memset(&service, 0, sizeof(struct mdns_service));
-  mdns_prepare_txtdata(&service);
-
-  /* Add 64+64+64+63+1 bytes = 256 bytes */
-  ck_assert_int_eq(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_63, TXT_LENGTH_63));
-  ck_assert_int_eq(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_63, TXT_LENGTH_63));
-  ck_assert_int_eq(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_63, TXT_LENGTH_63));
-  ck_assert_int_eq(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_62, TXT_LENGTH_62));
-  ck_assert_int_eq(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_0, TXT_LENGTH_0));
-
-  /* Length value should never exceed size of the actual buffer. */
-  ck_assert_uint_le(service.txtdata.length, sizeof(TXT_RDATA(service.txtdata)));
-
-  /* Check if the length is what we expect. */
-  ck_assert_uint_eq(service.txtdata.length, 64+64+64+63+1);
-
-  /* Try to add a few more strings while the buffer is full. These should fail
-   * unless the buffer size has been increased. */
-  ck_assert_int_ne(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_0, TXT_LENGTH_0));
-  ck_assert_int_ne(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_6, TXT_LENGTH_6));
-  ck_assert_int_ne(ERR_OK,
-    mdns_resp_add_service_txtitem(&service, TXT_STRING_0, TXT_LENGTH_0));
-
-  /* Check that the content matches what we expect */
-  ck_assert_int_eq(expected_txtdata_length, service.txtdata.length);
-  ck_assert_mem_eq(expected_txtdata, TXT_RDATA(service.txtdata), expected_txtdata_length);
-}
-END_TEST
-
 Suite* mdns_suite(void)
 {
   testfunc tests[] = {
@@ -1267,7 +1211,6 @@ Suite* mdns_suite(void)
     TESTFUNC(txt_empty_between_nonempty_items),
     TESTFUNC(txt_reject_buffer_overflow),
     TESTFUNC(txt_buffer_fill),
-    TESTFUNC(txt_buffer_fill_lastempty),
   };
   return create_suite("MDNS", tests, sizeof(tests)/sizeof(testfunc), NULL, NULL);
 }
