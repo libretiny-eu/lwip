@@ -440,13 +440,13 @@ int net_configure_address(struct ipv4_config *addr, void *intrfc_handle)
 
 		netifapi_netif_set_addr(&if_handle->netif, &if_handle->ipaddr,
 					&if_handle->nmask, &if_handle->gw);
-		netifapi_netif_set_up(&if_handle->netif);
-		net_configure_dns((struct wlan_ip_config *)addr);
 		if(if_handle == &g_mlan)
 		{
 			netif_set_status_callback(&if_handle->netif,
 										wm_netif_status_static_callback);
 		}
+		netifapi_netif_set_up(&if_handle->netif);
+		net_configure_dns((struct wlan_ip_config *)addr);
 		break;
 
 	case ADDR_TYPE_DHCP:
