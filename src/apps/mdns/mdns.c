@@ -2438,6 +2438,22 @@ mdns_resp_remove_netif(struct netif *netif)
   LWIP_ERROR("mdns_resp_remove_netif: Not an active netif", (mdns != NULL), return ERR_VAL);
 
   sys_untimeout(mdns_probe_and_announce, netif);
+  /* The output timers also get the netif as argument and would dereference
+   * the freed mdns data (e.g. when a WiFi driver removes the netif on disconnect) */
+#if LWIP_IPV4
+  sys_untimeout(mdns_multicast_timeout_reset_ipv4, netif);
+  sys_untimeout(mdns_multicast_probe_timeout_reset_ipv4, netif);
+  sys_untimeout(mdns_multicast_timeout_25ttl_reset_ipv4, netif);
+  sys_untimeout(mdns_send_multicast_msg_delayed_ipv4, netif);
+  sys_untimeout(mdns_send_unicast_msg_delayed_ipv4, netif);
+#endif
+#if LWIP_IPV6
+  sys_untimeout(mdns_multicast_timeout_reset_ipv6, netif);
+  sys_untimeout(mdns_multicast_probe_timeout_reset_ipv6, netif);
+  sys_untimeout(mdns_multicast_timeout_25ttl_reset_ipv6, netif);
+  sys_untimeout(mdns_send_multicast_msg_delayed_ipv6, netif);
+  sys_untimeout(mdns_send_unicast_msg_delayed_ipv6, netif);
+#endif
 
   for (i = 0; i < MDNS_MAX_SERVICES; i++) {
     struct mdns_service *service = mdns->services[i];
