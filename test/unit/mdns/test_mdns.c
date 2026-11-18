@@ -36,6 +36,10 @@
 #include "lwip/apps/mdns.h"
 #include "lwip/apps/mdns_domain.h"
 #include "lwip/apps/mdns_priv.h"
+#include "lwip/apps/mdns_out.h"
+#include "lwip/netif.h"
+#include "lwip/ip4.h"
+#include "lwip/timeouts.h"
 
 START_TEST(readname_basic)
 {
@@ -876,6 +880,72 @@ START_TEST(compress_long_match)
 }
 END_TEST
 
+static err_t
+mdns_test_netif_output(struct netif *netif, struct pbuf *p, const ip4_addr_t *ipaddr)
+{
+  LWIP_UNUSED_ARG(netif);
+  LWIP_UNUSED_ARG(p);
+  LWIP_UNUSED_ARG(ipaddr);
+  return ERR_OK;
+}
+
+static err_t
+mdns_test_netif_init(struct netif *netif)
+{
+  netif->name[0] = 't';
+  netif->name[1] = 'e';
+  netif->output = mdns_test_netif_output;
+  netif->mtu = 1500;
+  netif->flags = NETIF_FLAG_UP | NETIF_FLAG_LINK_UP | NETIF_FLAG_IGMP | NETIF_FLAG_BROADCAST;
+  return ERR_OK;
+}
+
+static int
+mdns_timeouts_for(const struct netif *netif)
+{
+  struct sys_timeo *t;
+  int count = 0;
+  for (t = *sys_timeouts_get_next_timeout(); t != NULL; t = t->next) {
+    if (t->arg == netif) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/* Removing a netif must cancel every mdns timer that holds it: the output
+ * timers would otherwise run later on the freed mdns data. */
+START_TEST(remove_netif_stops_timers)
+{
+  struct netif netif;
+  ip4_addr_t addr, mask, gw;
+  LWIP_UNUSED_ARG(_i);
+
+  IP4_ADDR(&addr, 192, 168, 1, 2);
+  IP4_ADDR(&mask, 255, 255, 255, 0);
+  IP4_ADDR(&gw, 192, 168, 1, 1);
+  fail_unless(netif_add(&netif, &addr, &mask, &gw, NULL, mdns_test_netif_init, ip4_input) == &netif);
+  netif_set_up(&netif);
+
+  mdns_resp_init();
+  fail_unless(mdns_resp_add_netif(&netif, "test") == ERR_OK);
+#if LWIP_IPV4
+  /* the timers a multicast answer starts */
+  mdns_start_multicast_timeouts_ipv4(&netif);
+#endif
+#if LWIP_IPV6
+  mdns_start_multicast_timeouts_ipv6(&netif);
+#endif
+  fail_unless(mdns_timeouts_for(&netif) > 0);
+  fail_unless(mdns_resp_remove_netif(&netif) == ERR_OK);
+
+  /* no timeout may still refer to the removed netif */
+  fail_unless(mdns_timeouts_for(&netif) == 0);
+
+  netif_remove(&netif);
+}
+END_TEST
+
 Suite* mdns_suite(void)
 {
   testfunc tests[] = {
@@ -911,6 +981,8 @@ Suite* mdns_suite(void)
     TESTFUNC(compress_2nd_label_short),
     TESTFUNC(compress_jump_to_jump),
     TESTFUNC(compress_long_match),
+
+    TESTFUNC(remove_netif_stops_timers),
   };
   return create_suite("MDNS", tests, sizeof(tests)/sizeof(testfunc), NULL, NULL);
 }
