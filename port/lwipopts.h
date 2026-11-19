@@ -426,6 +426,8 @@ The STM32F107 allows computing and verifying the IP, UDP, TCP and ICMP checksums
 
 /* ARP before DHCP causes multi-second delay  - turn it off */
 #define DHCP_DOES_ARP_CHECK            (0)
+/* lwIP 2.2.0 replaced DHCP_DOES_ARP_CHECK with ACD (RFC 5227) */
+#define LWIP_DHCP_DOES_ACD_CHECK       0
 
 #define TCP_MAX_ACCEPT_CONN 5
 #define MEMP_NUM_TCP_SEG               (TCP_SND_QUEUELEN*2)
